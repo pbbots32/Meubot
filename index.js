@@ -1,130 +1,58 @@
-const {
-  Client,
-  GatewayIntentBits,
-  ActionRowBuilder,
-  ButtonBuilder,
-  ButtonStyle,
-  Events
-} = require('discord.js');
+require('dotenv').config();
+  if (interaction.commandName === 'estoque') {
+    const estoque = carregarEstoque();
 
-const fs = require('fs');
+    const embed = new EmbedBuilder()
+      .setColor('#0099ff')
+      .setTitle('📦 Estoque Atual')
+      .setDescription(`Atualmente existem \`${estoque.codigos.length}\` codiguins disponíveis.`)
+      .setTimestamp();
 
-const client = new Client({
-  intents: [
-    GatewayIntentBits.Guilds,
-    GatewayIntentBits.GuildMessages,
-    GatewayIntentBits.MessageContent
-  ]
-});
-
-// PEGAR ESTOQUE
-function getCodes() {
-
-  return fs.readFileSync('codes.txt', 'utf8')
-    .split('\n')
-    .filter(code => code.trim() !== '');
-}
-
-// BOT ONLINE
-client.once('ready', () => {
-  console.log(`${client.user.tag} online`);
-});
-
-// COMANDO
-client.on('messageCreate', async message => {
-
-  if(message.author.bot) return;
-
-  if(message.content === '!painel') {
-
-    let codes = getCodes();
-
-    const gerar = new ButtonBuilder()
-      .setCustomId('gerar_codigo')
-      .setLabel('🎁 Gerar Código')
-      .setStyle(ButtonStyle.Primary);
-
-    const row = new ActionRowBuilder()
-      .addComponents(gerar);
-
-    await message.channel.send({
-      content:
-`# 🎁 Gere seu codiguinho!
-
-📦 Estoque atual: ${codes.length}
-
-Clique no botão abaixo para gerar seu código.`,
-      components: [row]
-    });
+    await interaction.reply({ embeds: [embed] });
   }
-});
 
-// BOTÃO
-client.on(Events.InteractionCreate, async interaction => {
+  if (interaction.commandName === 'painel') {
+    const estoque = carregarEstoque();
 
-  if(!interaction.isButton()) return;
+    const embed = new EmbedBuilder()
+      .setColor('#00ff88')
+      .setTitle('✨ PAINEL DE CODIGUINS')
+      .setDescription('Sistema automático de estoque de codiguins')
+      .addFields(
+        {
+          name: '📦 Disponíveis',
+          value: `\`${estoque.codigos.length}\``,
+          inline: true
+        },
+        {
+          name: '⚡ Status',
+          value: '`ONLINE`',
+          inline: true
+        }
+      )
+      .setThumbnail(client.user.displayAvatarURL())
+      .setFooter({
+        text: 'Sistema profissional'
+      })
+      .setTimestamp();
 
-  if(interaction.customId === 'gerar_codigo') {
+    const msg = await interaction.channel.send({
+      embeds: [embed]
+    });
 
-    let codes = getCodes();
+    const embeds = carregarEmbeds();
 
-    // SEM ESTOQUE
-    if(codes.length === 0) {
+    embeds[interaction.guild.id] = {
+      canalId: interaction.channel.id,
+      mensagemId: msg.id
+    };
 
-      return interaction.reply({
-        content: 'Sem estoque disponível.',
-        ephemeral: true
-      });
-    }
+    salvarEmbeds(embeds);
 
-    // PEGAR CÓDIGO
-    const code = codes.shift();
-
-    // SALVAR ESTOQUE
-    fs.writeFileSync('codes.txt', codes.join('\n'));
-
-    try {
-
-      // ENVIAR DM
-      await interaction.user.send(
-`🎁 Seu código:
-
-${code}`
-      );
-
-      // RESPOSTA
-      await interaction.reply({
-        content: 'Confira sua DM.',
-        ephemeral: true
-      });
-
-      // BOTÃO
-      const gerar = new ButtonBuilder()
-        .setCustomId('gerar_codigo')
-        .setLabel('🎁 Gerar Código')
-        .setStyle(ButtonStyle.Primary);
-
-      const row = new ActionRowBuilder()
-        .addComponents(gerar);
-
-      // ATUALIZAR PAINEL
-      await interaction.message.edit({
-        content:
-`# 🎁 Gere seu codiguinho!
-
-📦 Estoque atual: ${codes.length}
-
-Clique no botão abaixo para gerar seu código.`,
-        components: [row]
-      });
-
-    } catch {
-
-      await interaction.reply({
-        content: 'Ative sua DM para receber o código.',
-        ephemeral: true
-      });
-    }
+    await interaction.reply({
+      content: 'Painel criado com sucesso',
+      ephemeral: true
+    });
   }
 });
 
